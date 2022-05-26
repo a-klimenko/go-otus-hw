@@ -4,12 +4,13 @@ import (
 	"errors"
 	"strconv"
 	"strings"
+	"unicode"
 )
 
 var ErrInvalidString = errors.New("invalid string")
 
 func Unpack(data string) (string, error) {
-	var prev string
+	var prev rune
 	var result strings.Builder
 
 	if data == "" {
@@ -17,30 +18,28 @@ func Unpack(data string) (string, error) {
 	}
 
 	for i, val := range data {
-		count, err := strconv.Atoi(string(val))
-		if i == 0 && err == nil {
+		count, _ := strconv.Atoi(string(val))
+		if i == 0 && unicode.IsDigit(val) {
 			return "", ErrInvalidString
 		}
 
 		if i > 0 {
-			_, errPrev := strconv.Atoi(prev)
-			if err == nil && errPrev == nil {
-				return "", ErrInvalidString
-			}
-
-			if err == nil {
-				result.WriteString(strings.Repeat(prev, count))
-			} else if errPrev != nil {
-				result.WriteString(prev)
+			if unicode.IsDigit(val) {
+				if unicode.IsDigit(prev) {
+					return "", ErrInvalidString
+				}
+				result.WriteString(strings.Repeat(string(prev), count))
+			} else if !unicode.IsDigit(prev) {
+				result.WriteString(string(prev))
 			}
 		}
-		prev = string(val)
+		prev = val
 	}
 	runes := []rune(data)
-	lastSym := string(runes[len(runes)-1:])
+	lastSym := runes[len(runes)-1]
 
-	if _, err := strconv.Atoi(lastSym); err != nil {
-		result.WriteString(lastSym)
+	if !unicode.IsDigit(lastSym) {
+		result.WriteString(string(lastSym))
 	}
 
 	return result.String(), nil
