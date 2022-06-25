@@ -12,23 +12,14 @@ var (
 
 type Task func() error
 
+// Counter Структура для подсчета ошибок.
 type Counter struct {
-	blocker    chan struct{}
-	taskCh     chan Task
-	quitCh     chan struct{}
-	factoryWg  sync.WaitGroup
-	workersWg  sync.WaitGroup
-	tasksWg    sync.WaitGroup
 	mu         sync.Mutex
 	errCounter int
 }
 
-func NewCounter(n int) *Counter {
-	return &Counter{
-		blocker: make(chan struct{}, n),
-		taskCh:  make(chan Task),
-		quitCh:  make(chan struct{}),
-	}
+func NewCounter() *Counter {
+	return &Counter{}
 }
 
 func (c *Counter) GetCount() int {
@@ -49,61 +40,41 @@ func Run(tasks []Task, n, m int) error {
 		return ErrNoWorkers
 	}
 
-	c := NewCounter(n)
+	c := NewCounter()
+	taskCh := make(chan Task)
+	wg := sync.WaitGroup{}
 
-	c.factoryWg.Add(n)
-	go RunFactory(m, c)
-	c.factoryWg.Wait()
+	for i := 0; i < n; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+
+			for task := range taskCh {
+				if m > 0 && m == c.GetCount() {
+					return
+				}
+
+				err := task()
+				if err != nil && c.GetCount() < m {
+					c.IncreaseCount()
+				}
+			}
+		}()
+	}
 
 	for _, task := range tasks {
-		c.taskCh <- task
-		c.tasksWg.Add(1)
+		taskCh <- task
 		if m > 0 && c.GetCount() == m {
 			break
 		}
 	}
-	close(c.taskCh)
+	close(taskCh)
 
-	c.tasksWg.Wait()
-	c.quitCh <- struct{}{}
-	close(c.quitCh)
-	c.workersWg.Wait()
+	wg.Wait()
 
 	if m > 0 && c.GetCount() == m {
 		return ErrErrorsLimitExceeded
 	}
 
 	return nil
-}
-
-func RunFactory(m int, c *Counter) {
-	defer close(c.blocker)
-	for {
-		select {
-		case <-c.quitCh:
-			return
-		case c.blocker <- struct{}{}:
-			c.factoryWg.Done()
-			c.workersWg.Add(1)
-			go func() {
-				task, ok := <-c.taskCh
-				defer c.workersWg.Done()
-				if ok {
-					c.factoryWg.Add(1)
-					defer func() { <-c.blocker }()
-				}
-				if task != nil {
-					defer c.tasksWg.Done()
-					if m > 0 && m == c.GetCount() {
-						return
-					}
-
-					err := task()
-					if err != nil && c.GetCount() < m {
-						c.IncreaseCount()
-					}
-				}
-			}()
-		}
-	}
 }
