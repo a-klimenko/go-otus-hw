@@ -9,25 +9,23 @@ import (
 	"github.com/cheggaaa/pb/v3"
 )
 
+const BufferSize = 1
+
 var (
 	ErrUnsupportedFile       = errors.New("unsupported file")
 	ErrOffsetExceedsFileSize = errors.New("offset exceeds file size")
 )
 
 func Copy(fromPath, toPath string, offset, limit int64) error {
-	var source *os.File
-	var dest *os.File
-	var err error
-
-	source, err = os.Open(fromPath)
+	source, err := os.Open(fromPath)
 	if err != nil {
 		return err
 	}
 	defer source.Close()
-	var fileInfo os.FileInfo
-	fileInfo, err = source.Stat()
-	if err != nil {
-		return err
+
+	fileInfo, fileInfoErr := source.Stat()
+	if fileInfoErr != nil {
+		return fileInfoErr
 	}
 
 	if !fileInfo.Mode().IsRegular() {
@@ -39,9 +37,9 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 		return ErrOffsetExceedsFileSize
 	}
 
-	dest, err = os.Create(toPath)
-	if err != nil {
-		return err
+	dest, destErr := os.Create(toPath)
+	if destErr != nil {
+		return destErr
 	}
 	defer dest.Close()
 
@@ -60,26 +58,25 @@ func Copy(fromPath, toPath string, offset, limit int64) error {
 	bar.Set(pb.Bytes, true)
 	bar.Set(pb.SIBytesPrefix, true)
 
-	buf := make([]byte, 1)
+	buf := make([]byte, BufferSize)
 	var progress int64
 	for progress < target {
 		read, readErr := source.Read(buf)
-		progress += int64(read)
-
-		bar.Increment()
-		time.Sleep(time.Millisecond)
-
-		_, writeErr := dest.Write(buf)
-		if writeErr != nil {
-			return writeErr
-		}
-
 		if readErr == io.EOF {
 			break
 		}
 		if readErr != nil {
 			return readErr
 		}
+
+		_, writeErr := dest.Write(buf)
+		if writeErr != nil {
+			return writeErr
+		}
+
+		progress += int64(read)
+		bar.Increment()
+		time.Sleep(time.Millisecond)
 	}
 
 	return nil
