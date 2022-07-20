@@ -72,7 +72,7 @@ func TestReadDir(t *testing.T) {
 
 		result, errResult := ReadDir(envDir)
 		require.NoError(t, errResult)
-		require.Equal(t, make(Environment, 0), result)
+		require.Empty(t, result)
 	})
 
 	t.Run("non-existing folder", func(t *testing.T) {
