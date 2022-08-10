@@ -6,6 +6,8 @@ package hw10programoptimization
 import (
 	"archive/zip"
 	"bytes"
+	"errors"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -37,6 +39,25 @@ func TestGetDomainStat(t *testing.T) {
 		result, err := GetDomainStat(bytes.NewBufferString(data), "unknown")
 		require.NoError(t, err)
 		require.Equal(t, DomainStat{}, result)
+	})
+
+	t.Run("scanner error", func(t *testing.T) {
+		notValidData := strings.Repeat(
+			`{"Id":1,"Name":"Howard Mendoza","Username":"0Oliver","Email":"aliquid_qui_ea@Browsedrive.gov","Phone":"6-866-899-36-79","Password":"InAQJvsq","Address":"Blackbird Place 25"}`,
+			65000,
+		)
+		_, err := GetDomainStat(bytes.NewBufferString(notValidData), "test")
+		require.True(t, errors.Is(err, ErrScannerError))
+	})
+
+	t.Run("not valid json", func(t *testing.T) {
+		_, err := GetDomainStat(bytes.NewBufferString("test"), "test")
+		require.True(t, errors.Is(err, ErrNotValidJSON))
+	})
+
+	t.Run("not valid domain", func(t *testing.T) {
+		_, err := GetDomainStat(bytes.NewBufferString(data), "test(?=re)")
+		require.True(t, errors.Is(err, ErrNotValidDomain))
 	})
 }
 

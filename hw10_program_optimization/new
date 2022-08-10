@@ -1,0 +1,11 @@
+goos: linux
+goarch: amd64
+pkg: github.com/a-klimenko/go-otus-hw/hw10_program_optimization
+cpu: Intel(R) Core(TM) i7-9750H CPU @ 2.60GHz
+BenchmarkGetDomainStat-12    	       6	 172042061 ns/op	14538738 B/op	  745357 allocs/op
+BenchmarkGetDomainStat-12    	       6	 171541469 ns/op	14538890 B/op	  745358 allocs/op
+BenchmarkGetDomainStat-12    	       6	 171872928 ns/op	14538285 B/op	  745355 allocs/op
+BenchmarkGetDomainStat-12    	       6	 170775182 ns/op	14538616 B/op	  745357 allocs/op
+BenchmarkGetDomainStat-12    	       6	 170644128 ns/op	14538877 B/op	  745358 allocs/op
+PASS
+ok  	github.com/a-klimenko/go-otus-hw/hw10_program_optimization	6.345s
