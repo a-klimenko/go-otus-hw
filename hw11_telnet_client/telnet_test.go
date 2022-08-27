@@ -2,8 +2,10 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"io/ioutil"
 	"net"
+	"os"
 	"sync"
 	"testing"
 	"time"
@@ -61,5 +63,24 @@ func TestTelnetClient(t *testing.T) {
 		}()
 
 		wg.Wait()
+	})
+
+	t.Run("invalid address", func(t *testing.T) {
+		client := NewTelnetClient("test.test", time.Second, os.Stdin, os.Stdout)
+		err := client.Connect()
+		require.NotNil(t, err)
+		require.Error(t, err)
+	})
+
+	t.Run("invalid in", func(t *testing.T) {
+		client := NewTelnetClient("localhost:4242", time.Second, nil, os.Stdout)
+		err := client.Connect()
+		require.True(t, errors.Is(err, ErrInvalidIn))
+	})
+
+	t.Run("invalid out", func(t *testing.T) {
+		client := NewTelnetClient("localhost:4242", time.Second, os.Stdin, nil)
+		err := client.Connect()
+		require.True(t, errors.Is(err, ErrInvalidOut))
 	})
 }
