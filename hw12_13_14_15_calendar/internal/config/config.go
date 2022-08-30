@@ -1,7 +1,6 @@
 package config
 
 import (
-	"net"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -34,10 +33,6 @@ func NewConfig(configPath string) Config {
 	}
 
 	return config
-}
-
-func (c Config) GetAddr() string {
-	return net.JoinHostPort(c.Host, c.Port)
 }
 
 func readConfig(configPath string) {
