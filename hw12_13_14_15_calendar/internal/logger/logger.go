@@ -1,20 +1,40 @@
 package logger
 
-import "fmt"
+import (
+	"io"
 
-type Logger struct { // TODO
+	"github.com/sirupsen/logrus"
+)
+
+type Logger struct {
+	Level        logrus.Level
+	logrusLogger *logrus.Logger
 }
 
-func New(level string) *Logger {
-	return &Logger{}
+func New(level string, loggerOut io.Writer) *Logger {
+	log := logrus.New()
+	log.Formatter = new(logrus.TextFormatter)
+	loggerLevel, err := logrus.ParseLevel(level)
+	if err != nil {
+		logrus.Fatal(err)
+	}
+	log.Level = loggerLevel
+	log.Out = loggerOut
+
+	return &Logger{
+		Level:        loggerLevel,
+		logrusLogger: log,
+	}
 }
 
-func (l Logger) Info(msg string) {
-	fmt.Println(msg)
+func (l *Logger) getEntry() *logrus.Entry {
+	return l.logrusLogger.WithFields(logrus.Fields{})
 }
 
-func (l Logger) Error(msg string) {
-	// TODO
+func (l *Logger) Info(msg string) {
+	l.logrusLogger.Info(msg)
 }
 
-// TODO
+func (l *Logger) Error(msg string) {
+	l.getEntry().Error(msg)
+}
