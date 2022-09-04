@@ -3,6 +3,8 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
+	internalgrpc "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/grpc"
 	"log"
 	"os"
 	"os/signal"
@@ -33,7 +35,7 @@ func main() {
 
 	config := internalconfig.NewConfig(configFile)
 
-	logFile, err := os.OpenFile(config.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o666)
+	logFile, err := os.OpenFile(config.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}
@@ -55,9 +57,15 @@ func main() {
 		log.Fatal("unregistered storage type") //nolint:gocritic
 	}
 
+	err = storage.Connect(context.Background())
+	if err != nil {
+		logg.Error(fmt.Sprintf("can not connect to storage: %s", err))
+	}
+
 	calendar := app.New(logg, storage)
 
-	server := internalhttp.NewServer(config.Host, config.Port, logg, calendar)
+	httpServer := internalhttp.NewServer(config.Host, config.HTTPPort, logg, calendar)
+	grpcServer := internalgrpc.NewServer(config.Host, config.GRPCPort, logg, calendar)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -70,7 +78,10 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 		defer cancel()
 
-		if err := server.Stop(ctx); err != nil {
+		if err := httpServer.Stop(ctx); err != nil {
+			logg.Error("failed to stop http server: " + err.Error())
+		}
+		if err := grpcServer.Stop(ctx); err != nil {
 			logg.Error("failed to stop http server: " + err.Error())
 		}
 		doneCh <- struct{}{}
@@ -78,8 +89,13 @@ func main() {
 
 	logg.Info("calendar is running...")
 
-	if err := server.Start(ctx); err != nil {
+	if err := httpServer.Start(ctx); err != nil {
 		logg.Error("failed to start http server: " + err.Error())
+		cancel()
+		os.Exit(1)
+	}
+	if err := grpcServer.Start(ctx); err != nil {
+		logg.Error("failed to start grpc server: " + err.Error())
 		cancel()
 		os.Exit(1)
 	}

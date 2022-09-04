@@ -43,7 +43,7 @@ func TestStorage(t *testing.T) {
 	t.Run("edit", func(t *testing.T) {
 		movieEvent.Title = "Watch the new movie"
 
-		eventsForDayBeforeEdit, err := storage.SelectForDay(movieEvent.StartDate.Add(-1 * time.Hour))
+		eventsForDayBeforeEdit, err := storage.List(movieEvent.StartDate.Add(-1*time.Hour), memorystorage.DayDuration)
 		require.NoError(t, err)
 		require.Len(t, eventsForDayBeforeEdit, 1)
 
@@ -53,7 +53,7 @@ func TestStorage(t *testing.T) {
 		err = storage.Edit(movieEvent.ID, movieEvent)
 		require.NoError(t, err)
 
-		eventsForDayAfterEdit, err := storage.SelectForDay(movieEvent.StartDate.Add(-1 * time.Hour))
+		eventsForDayAfterEdit, err := storage.List(movieEvent.StartDate.Add(-1*time.Hour), memorystorage.DayDuration)
 		require.NoError(t, err)
 
 		updatedEvent := eventsForDayAfterEdit[eventID]
@@ -61,29 +61,47 @@ func TestStorage(t *testing.T) {
 	})
 
 	t.Run("select", func(t *testing.T) {
-		emptyForDayEvents, err := storage.SelectForDay(movieEvent.StartDate.AddDate(0, 0, -2))
+		emptyForDayEvents, err := storage.List(
+			movieEvent.StartDate.AddDate(0, 0, -2),
+			memorystorage.DayDuration,
+		)
 		require.NoError(t, err)
 		require.Len(t, emptyForDayEvents, 0)
 
-		forDayEvents, err := storage.SelectForDay(movieEvent.StartDate.Add(-1 * time.Hour))
+		forDayEvents, err := storage.List(
+			movieEvent.StartDate.Add(-1*time.Hour),
+			memorystorage.DayDuration,
+		)
 		require.NoError(t, err)
 		require.Len(t, forDayEvents, 1)
 		require.Equal(t, movieEvent, forDayEvents[eventID])
 
-		emptyForWeekEvents, err := storage.SelectForWeek(movieEvent.StartDate.AddDate(0, 0, -8))
+		emptyForWeekEvents, err := storage.List(
+			movieEvent.StartDate.AddDate(0, 0, -8),
+			memorystorage.WeekDuration,
+		)
 		require.NoError(t, err)
 		require.Len(t, emptyForWeekEvents, 0)
 
-		forWeekEvents, err := storage.SelectForWeek(movieEvent.StartDate.AddDate(0, 0, -1))
+		forWeekEvents, err := storage.List(
+			movieEvent.StartDate.AddDate(0, 0, -1),
+			memorystorage.WeekDuration,
+		)
 		require.NoError(t, err)
 		require.Len(t, forWeekEvents, 1)
 		require.Equal(t, movieEvent, forWeekEvents[eventID])
 
-		emptyForMonths, err := storage.SelectForMonth(movieEvent.StartDate.AddDate(0, -1, -1))
+		emptyForMonths, err := storage.List(
+			movieEvent.StartDate.AddDate(0, -1, -1),
+			memorystorage.MonthDuration,
+		)
 		require.NoError(t, err)
 		require.Len(t, emptyForMonths, 0)
 
-		forMonths, err := storage.SelectForMonth(movieEvent.StartDate.AddDate(0, 0, -1))
+		forMonths, err := storage.List(
+			movieEvent.StartDate.AddDate(0, 0, -1),
+			memorystorage.MonthDuration,
+		)
 		require.NoError(t, err)
 		require.Len(t, forMonths, 1)
 		require.Equal(t, movieEvent, forMonths[eventID])
@@ -93,7 +111,10 @@ func TestStorage(t *testing.T) {
 		err = storage.Delete(movieEvent.ID)
 		require.NoError(t, err)
 
-		eventsForDay, err := storage.SelectForDay(movieEvent.StartDate.Add(-1 * time.Hour))
+		eventsForDay, err := storage.List(
+			movieEvent.StartDate.Add(-1*time.Hour),
+			memorystorage.MonthDuration,
+		)
 		require.NoError(t, err)
 		require.Len(t, eventsForDay, 0)
 
