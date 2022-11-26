@@ -2,20 +2,22 @@ package internalhttp
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/app"
-	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/logger"
-	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage"
-	memorystorage "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage/memory"
-	"github.com/google/uuid"
-	"github.com/stretchr/testify/suite"
 	"log"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"testing"
 	"time"
+
+	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/app"
+	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/logger"
+	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage"
+	memorystorage "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage/memory"
+	"github.com/google/uuid"
+	"github.com/stretchr/testify/suite"
 )
 
 func createNewEvent() *storage.Event {
@@ -89,7 +91,7 @@ func (suite *HandlerTestSuite) TestCreate() {
 		log.Fatal(err)
 	}
 	url := fmt.Sprintf("%s/create", suite.ts.URL)
-	request, _ := http.NewRequest(http.MethodPost, url, bytes.NewReader(jsonEvent))
+	request, _ := http.NewRequestWithContext(context.Background(), http.MethodPost, url, bytes.NewReader(jsonEvent))
 
 	response, err := http.DefaultClient.Do(request)
 	suite.NoError(err)
@@ -100,6 +102,7 @@ func (suite *HandlerTestSuite) TestCreate() {
 	if err := decoder.Decode(&event); err != nil {
 		log.Fatal(err)
 	}
+	response.Body.Close()
 
 	exists, err := suite.calendar.EventExists(event.ID)
 	if err != nil {
@@ -118,7 +121,7 @@ func (suite *HandlerTestSuite) TestEdit() {
 		log.Fatal(err)
 	}
 	url := fmt.Sprintf("%s/edit?id=%s", suite.ts.URL, suite.updateEvent.ID)
-	request, _ := http.NewRequest(http.MethodPut, url, bytes.NewReader(jsonEvent))
+	request, _ := http.NewRequestWithContext(context.Background(), http.MethodPut, url, bytes.NewReader(jsonEvent))
 
 	response, err := http.DefaultClient.Do(request)
 	suite.NoError(err)
@@ -129,26 +132,28 @@ func (suite *HandlerTestSuite) TestEdit() {
 	if err := decoder.Decode(&event); err != nil {
 		log.Fatal(err)
 	}
-
+	response.Body.Close()
 	suite.Equal("updated", event.Title)
 }
 
 func (suite *HandlerTestSuite) TestDelete() {
 	url := fmt.Sprintf("%s/delete?id=%s", suite.ts.URL, suite.deleteEvent.ID)
-	request, _ := http.NewRequest(http.MethodDelete, url, nil)
+	request, _ := http.NewRequestWithContext(context.Background(), http.MethodDelete, url, nil)
 
 	response, err := http.DefaultClient.Do(request)
 	suite.NoError(err)
 	suite.Equal(http.StatusNoContent, response.StatusCode)
+	response.Body.Close()
 
 	exists, err := suite.calendar.EventExists(suite.deleteEvent.ID)
+	suite.NoError(err)
 	suite.False(exists)
 }
 
 func (suite *HandlerTestSuite) TestList() {
 	date := time.Now().AddDate(0, 0, 1)
 	url := fmt.Sprintf("%s/list?date=%s&duration=%s", suite.ts.URL, date.Format("2006-01-02"), storage.DayDuration)
-	request, _ := http.NewRequest(http.MethodGet, url, nil)
+	request, _ := http.NewRequestWithContext(context.Background(), http.MethodGet, url, nil)
 
 	response, err := http.DefaultClient.Do(request)
 	suite.NoError(err)
@@ -159,6 +164,7 @@ func (suite *HandlerTestSuite) TestList() {
 	if err := decoder.Decode(&responseData); err != nil {
 		log.Fatal(err)
 	}
+	response.Body.Close()
 	suite.Equal(1, len(responseData))
 }
 

@@ -3,6 +3,7 @@ package sqlstorage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -164,7 +165,7 @@ func (s *Storage) Exists(id uuid.UUID) (bool, error) {
 	var exists bool
 	query := `SELECT EXISTS(SELECT 1 FROM events WHERE id = $1)`
 	err := s.db.QueryRowxContext(s.ctx, query, id).Scan(&exists)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		return false, err
 	}
 

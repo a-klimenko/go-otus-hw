@@ -3,6 +3,7 @@ package app
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage"
@@ -55,7 +56,7 @@ func (a *App) EventExists(id uuid.UUID) (bool, error) {
 
 func (a *App) List(date time.Time, duration string) map[uuid.UUID]storage.Event {
 	events, err := a.storage.List(date, duration)
-	if err != nil && err != sql.ErrNoRows {
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.logger.Error(err.Error())
 	}
 

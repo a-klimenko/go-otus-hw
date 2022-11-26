@@ -3,16 +3,15 @@ package internalgrpc
 import (
 	"context"
 	"fmt"
+	"time"
+
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
 	"google.golang.org/grpc/peer"
 	"google.golang.org/grpc/status"
-	"time"
 )
 
-var (
-	ErrPeerFromContext = status.Error(codes.Internal, "getting peer fail")
-)
+var ErrPeerFromContext = status.Error(codes.Internal, "getting peer fail")
 
 func loggingMiddleware(logger Logger) grpc.UnaryServerInterceptor {
 	return func(
@@ -32,7 +31,7 @@ func loggingMiddleware(logger Logger) grpc.UnaryServerInterceptor {
 		start := time.Now()
 		response, err = handler(ctx, req)
 
-		logger.Info(fmt.Sprintf(`%s [%s] %s %s %s gRPC-Call"`,
+		logger.Info(fmt.Sprintf(`%s [%s] %s %s (%.2fs) gRPC-Call"`,
 			remoteAddr,
 			start.Format("2006-01-02 15:04:05"),
 			info.FullMethod,

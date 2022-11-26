@@ -6,14 +6,15 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/grpc/eventpb"
-	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage"
-	"github.com/google/uuid"
-	"google.golang.org/grpc"
 	"net"
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/grpc/eventpb"
+	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage"
+	"github.com/google/uuid"
+	"google.golang.org/grpc"
 )
 
 type Server struct {
@@ -63,6 +64,7 @@ func NewServer(host, port string, logger Logger, app Application) *Server {
 
 	return srv
 }
+
 func (s *Server) Start(ctx context.Context) error {
 	lsn, err := net.Listen("tcp", net.JoinHostPort(s.host, s.port))
 	if err != nil {

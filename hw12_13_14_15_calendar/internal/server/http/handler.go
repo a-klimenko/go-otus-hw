@@ -3,12 +3,14 @@ package internalhttp
 import (
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
-	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage"
-	"github.com/go-playground/validator/v10"
-	"github.com/google/uuid"
 	"net/http"
 	"time"
+
+	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage"
+	validator "github.com/go-playground/validator/v10"
+	"github.com/google/uuid"
 )
 
 type ServerHandler struct {
@@ -67,7 +69,7 @@ func (s *ServerHandler) EditHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	event, err := s.app.GetEvent(id)
-	if err == sql.ErrNoRows {
+	if errors.Is(err, sql.ErrNoRows) {
 		s.logger.Error(fmt.Sprintf("event not found %s", id))
 		w.WriteHeader(http.StatusNotFound)
 		return

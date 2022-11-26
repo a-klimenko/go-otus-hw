@@ -4,7 +4,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	internalgrpc "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/grpc"
 	"log"
 	"os"
 	"os/signal"
@@ -14,6 +13,7 @@ import (
 	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/app"
 	internalconfig "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/config"
 	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/logger"
+	internalgrpc "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/grpc"
 	internalhttp "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/http"
 	memorystorage "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage/memory"
 	sqlstorage "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage/sql"
@@ -35,7 +35,7 @@ func main() {
 
 	config := internalconfig.NewConfig(configFile)
 
-	logFile, err := os.OpenFile(config.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0666)
+	logFile, err := os.OpenFile(config.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}

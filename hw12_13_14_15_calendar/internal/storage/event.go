@@ -7,9 +7,11 @@ import (
 	"github.com/google/uuid"
 )
 
-const DayDuration = "day"
-const WeekDuration = "week"
-const MonthDuration = "month"
+const (
+	DayDuration   = "day"
+	WeekDuration  = "week"
+	MonthDuration = "month"
+)
 
 var (
 	ErrDateAlreadyBusy = errors.New("date already busy")
