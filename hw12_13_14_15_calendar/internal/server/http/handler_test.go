@@ -62,7 +62,7 @@ func (suite *HandlerTestSuite) SetupTest() {
 		StartDate:   time.Now().AddDate(0, 0, 1),
 		EndDate:     time.Now().AddDate(0, 0, 2),
 	}
-	err = suite.calendar.CreateEvent(*suite.updateEvent)
+	err = suite.calendar.CreateEvent(context.Background(), *suite.updateEvent)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -74,7 +74,7 @@ func (suite *HandlerTestSuite) SetupTest() {
 		StartDate:   time.Now().AddDate(0, 1, 0),
 		EndDate:     time.Now().AddDate(0, 1, 1),
 	}
-	err = suite.calendar.CreateEvent(*suite.deleteEvent)
+	err = suite.calendar.CreateEvent(context.Background(), *suite.deleteEvent)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -104,7 +104,7 @@ func (suite *HandlerTestSuite) TestCreate() {
 	}
 	response.Body.Close()
 
-	exists, err := suite.calendar.EventExists(event.ID)
+	exists, err := suite.calendar.EventExists(context.Background(), event.ID)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -145,7 +145,7 @@ func (suite *HandlerTestSuite) TestDelete() {
 	suite.Equal(http.StatusNoContent, response.StatusCode)
 	response.Body.Close()
 
-	exists, err := suite.calendar.EventExists(suite.deleteEvent.ID)
+	exists, err := suite.calendar.EventExists(context.Background(), suite.deleteEvent.ID)
 	suite.NoError(err)
 	suite.False(exists)
 }

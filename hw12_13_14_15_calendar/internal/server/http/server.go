@@ -2,10 +2,8 @@ package internalhttp
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage"
@@ -26,12 +24,12 @@ type Logger interface {
 }
 
 type Application interface {
-	CreateEvent(event storage.Event) error
-	EditEvent(id uuid.UUID, e storage.Event) error
-	DeleteEvent(id uuid.UUID) error
-	List(date time.Time, duration string) map[uuid.UUID]storage.Event
-	EventExists(id uuid.UUID) (bool, error)
-	GetEvent(id uuid.UUID) (storage.Event, error)
+	CreateEvent(ctx context.Context, event storage.Event) error
+	EditEvent(ctx context.Context, id uuid.UUID, e storage.Event) error
+	DeleteEvent(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, date time.Time, duration string) map[uuid.UUID]storage.Event
+	EventExists(ctx context.Context, id uuid.UUID) (bool, error)
+	GetEvent(ctx context.Context, id uuid.UUID) (storage.Event, error)
 }
 
 func NewServer(host, port string, logger Logger, app Application) *Server {
@@ -47,22 +45,16 @@ func NewServer(host, port string, logger Logger, app Application) *Server {
 	return srv
 }
 
-func (s *Server) Start(ctx context.Context) error {
+func (s *Server) Start() error {
 	if err := s.server.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-		s.logger.Error(fmt.Sprintf("listen: %s", err))
-		os.Exit(1)
+		return err
 	}
-	<-ctx.Done()
 
 	return nil
 }
 
 func (s *Server) Stop(ctx context.Context) error {
-	s.logger.Info("calendar is shutting down")
-	if err := s.server.Shutdown(ctx); err != nil {
-		s.logger.Error(fmt.Sprintf("shutdown: %s", err))
-	}
-	<-ctx.Done()
+	s.logger.Info("http server is shutting down")
 
-	return nil
+	return s.server.Shutdown(ctx)
 }

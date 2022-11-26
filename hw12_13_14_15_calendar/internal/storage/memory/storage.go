@@ -21,7 +21,7 @@ func New() *Storage {
 	}
 }
 
-func (s *Storage) Connect(ctx context.Context) error {
+func (s *Storage) Connect() error {
 	return nil
 }
 
@@ -29,7 +29,7 @@ func (s *Storage) Close() error {
 	return nil
 }
 
-func (s *Storage) Create(e storage.Event) error {
+func (s *Storage) Create(_ context.Context, e storage.Event) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -44,7 +44,7 @@ func (s *Storage) Create(e storage.Event) error {
 	return nil
 }
 
-func (s *Storage) Delete(id uuid.UUID) error {
+func (s *Storage) Delete(_ context.Context, id uuid.UUID) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 
@@ -57,7 +57,7 @@ func (s *Storage) Delete(id uuid.UUID) error {
 	return nil
 }
 
-func (s *Storage) Edit(id uuid.UUID, e storage.Event) error {
+func (s *Storage) Edit(_ context.Context, id uuid.UUID, e storage.Event) error {
 	s.mu.RLock()
 	if _, ok := s.events[id]; !ok {
 		return storage.ErrEventNotFound
@@ -71,7 +71,7 @@ func (s *Storage) Edit(id uuid.UUID, e storage.Event) error {
 	return nil
 }
 
-func (s *Storage) List(date time.Time, duration string) (map[uuid.UUID]storage.Event, error) {
+func (s *Storage) List(_ context.Context, date time.Time, duration string) (map[uuid.UUID]storage.Event, error) {
 	switch duration {
 	case storage.DayDuration:
 		return s.SelectInDateRange(date, date.AddDate(0, 0, 1))
@@ -96,13 +96,13 @@ func (s *Storage) SelectInDateRange(startDate, endDate time.Time) (map[uuid.UUID
 	return res, nil
 }
 
-func (s *Storage) Exists(id uuid.UUID) (bool, error) {
+func (s *Storage) Exists(_ context.Context, id uuid.UUID) (bool, error) {
 	_, ok := s.events[id]
 
 	return ok, nil
 }
 
-func (s *Storage) GetEvent(id uuid.UUID) (storage.Event, error) {
+func (s *Storage) GetEvent(_ context.Context, id uuid.UUID) (storage.Event, error) {
 	event, ok := s.events[id]
 
 	if !ok {
@@ -110,4 +110,35 @@ func (s *Storage) GetEvent(id uuid.UUID) (storage.Event, error) {
 	}
 
 	return event, nil
+}
+
+func (s *Storage) GetByNotificationPeriod(_ context.Context, startDate, endDate time.Time) (map[uuid.UUID]storage.Event, error) {
+	events, _ := s.SelectInDateRange(startDate, endDate)
+
+	result := make(map[uuid.UUID]storage.Event, 0)
+	for id, event := range events {
+		if event.IsNotified == 0 {
+			result[id] = event
+		}
+	}
+
+	return result, nil
+}
+
+func (s *Storage) ChangeNotifyStatus(_ context.Context, eventID uuid.UUID) error {
+	if event, ok := s.events[eventID]; ok {
+		event.IsNotified = 1
+	}
+
+	return nil
+}
+
+func (s *Storage) DeleteOldEvents(_ context.Context) error {
+	for id, event := range s.events {
+		if event.EndDate.After(time.Now().AddDate(-1, 0, 0)) {
+			delete(s.events, id)
+		}
+	}
+
+	return nil
 }

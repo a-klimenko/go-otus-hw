@@ -1,1 +1,50 @@
 version: "3"
+
+services:
+  db:
+    build: ../build/db
+    container_name: db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    ports:
+      - "${DB_PORT}:5432"
+    restart: always
+
+  rabbitmq:
+    build: ../build/rabbit
+    container_name: rabbitmq
+    restart: always
+    ports:
+      - ${RABBIT_PORT}:5672
+      - ${RABBIT_GUI_PORT}:15672
+
+  scheduler:
+    build:
+      context: ../
+      dockerfile: ./build/scheduler/Dockerfile
+    container_name: scheduler
+    restart: always
+    depends_on:
+      - db
+      - rabbitmq
+    volumes:
+      - ../docker/logs/scheduler/:/opt/scheduler/logs
+
+  sender:
+    build:
+      context: ../
+      dockerfile: ./build/sender/Dockerfile
+    container_name: sender
+    restart: always
+    depends_on:
+      - db
+      - rabbitmq
+    volumes:
+      - ../docker/logs/sender/:/opt/sender/logs
+
+
+volumes:
+  postgres:
+    driver: local

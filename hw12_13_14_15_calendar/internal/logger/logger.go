@@ -38,3 +38,7 @@ func (l *Logger) Info(msg string) {
 func (l *Logger) Error(msg string) {
 	l.getEntry().Error(msg)
 }
+
+func (l *Logger) Fatal(msg string) {
+	l.logrusLogger.Fatal(msg)
+}

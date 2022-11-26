@@ -37,7 +37,7 @@ func (s *ServerHandler) CreateHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.app.CreateEvent(*event); err != nil {
+	if err := s.app.CreateEvent(r.Context(), *event); err != nil {
 		s.logger.Error(fmt.Sprintf("event creation fail: %s", err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -68,7 +68,7 @@ func (s *ServerHandler) EditHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	event, err := s.app.GetEvent(id)
+	event, err := s.app.GetEvent(r.Context(), id)
 	if errors.Is(err, sql.ErrNoRows) {
 		s.logger.Error(fmt.Sprintf("event not found %s", id))
 		w.WriteHeader(http.StatusNotFound)
@@ -92,7 +92,7 @@ func (s *ServerHandler) EditHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.app.EditEvent(event.ID, event); err != nil {
+	if err := s.app.EditEvent(r.Context(), event.ID, event); err != nil {
 		s.logger.Error(fmt.Sprintf("event edition fail: %s", err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -125,7 +125,7 @@ func (s *ServerHandler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	exists, err := s.app.EventExists(id)
+	exists, err := s.app.EventExists(r.Context(), id)
 	if err != nil {
 		s.logger.Error(err.Error())
 		w.WriteHeader(http.StatusInternalServerError)
@@ -138,7 +138,7 @@ func (s *ServerHandler) DeleteHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := s.app.DeleteEvent(id); err != nil {
+	if err := s.app.DeleteEvent(r.Context(), id); err != nil {
 		s.logger.Error(fmt.Sprintf("event deleting fail: %s", err))
 		w.WriteHeader(http.StatusBadRequest)
 		return
@@ -166,7 +166,7 @@ func (s *ServerHandler) ListHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	list := s.app.List(parsedDate, duration)
+	list := s.app.List(r.Context(), parsedDate, duration)
 	err = json.NewEncoder(w).Encode(list)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
