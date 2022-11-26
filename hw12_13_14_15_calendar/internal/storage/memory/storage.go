@@ -2,6 +2,7 @@ package memorystorage
 
 import (
 	"context"
+	"fmt"
 	"sync"
 	"time"
 
@@ -70,19 +71,20 @@ func (s *Storage) Edit(id uuid.UUID, e storage.Event) error {
 	return nil
 }
 
-func (s *Storage) SelectForDay(date time.Time) (map[uuid.UUID]storage.Event, error) {
-	return s.list(date, date.AddDate(0, 0, 1))
+func (s *Storage) List(date time.Time, duration string) (map[uuid.UUID]storage.Event, error) {
+	switch duration {
+	case storage.DayDuration:
+		return s.SelectInDateRange(date, date.AddDate(0, 0, 1))
+	case storage.WeekDuration:
+		return s.SelectInDateRange(date, date.AddDate(0, 0, 7))
+	case storage.MonthDuration:
+		return s.SelectInDateRange(date, date.AddDate(0, 1, 0))
+	default:
+		return s.SelectInDateRange(date, date.AddDate(0, 0, 1))
+	}
 }
 
-func (s *Storage) SelectForWeek(date time.Time) (map[uuid.UUID]storage.Event, error) {
-	return s.list(date, date.AddDate(0, 0, 7))
-}
-
-func (s *Storage) SelectForMonth(date time.Time) (map[uuid.UUID]storage.Event, error) {
-	return s.list(date, date.AddDate(0, 1, 0))
-}
-
-func (s *Storage) list(startDate, endDate time.Time) (map[uuid.UUID]storage.Event, error) {
+func (s *Storage) SelectInDateRange(startDate, endDate time.Time) (map[uuid.UUID]storage.Event, error) {
 	res := make(map[uuid.UUID]storage.Event, 0)
 
 	for id, event := range s.events {
@@ -92,4 +94,20 @@ func (s *Storage) list(startDate, endDate time.Time) (map[uuid.UUID]storage.Even
 	}
 
 	return res, nil
+}
+
+func (s *Storage) Exists(id uuid.UUID) (bool, error) {
+	_, ok := s.events[id]
+
+	return ok, nil
+}
+
+func (s *Storage) GetEvent(id uuid.UUID) (storage.Event, error) {
+	event, ok := s.events[id]
+
+	if !ok {
+		return event, fmt.Errorf("event not found")
+	}
+
+	return event, nil
 }

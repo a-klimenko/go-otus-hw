@@ -14,7 +14,8 @@ const (
 type Config struct {
 	StorageType string `mapstructure:"STORAGE_TYPE"`
 	Host        string `mapstructure:"HOST"`
-	Port        string `mapstructure:"PORT"`
+	HTTPPort    string `mapstructure:"HTTP_PORT"`
+	GRPCPort    string `mapstructure:"GRPC_PORT"`
 	LogFile     string `mapstructure:"LOG_FILE"`
 	LogLevel    string `mapstructure:"LOG_LEVEL"`
 	DBUser      string `mapstructure:"DB_USER"`

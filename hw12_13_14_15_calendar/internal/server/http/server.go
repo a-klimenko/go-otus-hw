@@ -3,6 +3,7 @@ package internalhttp
 import (
 	"context"
 	"fmt"
+	"net"
 	"net/http"
 	"os"
 	"time"
@@ -13,10 +14,11 @@ import (
 
 type Server struct {
 	host, port string
-	app        Application
 	logger     Logger
 	server     *http.Server
 }
+
+type EventHandler struct{}
 
 type Logger interface {
 	Info(msg string)
@@ -24,28 +26,25 @@ type Logger interface {
 }
 
 type Application interface {
-	CreateEvent(event storage.Event)
-	EditEvent(id uuid.UUID, e storage.Event)
-	DeleteEvent(id uuid.UUID)
-	SelectForDay(date time.Time) map[uuid.UUID]storage.Event
-	SelectForWeek(date time.Time) map[uuid.UUID]storage.Event
-	SelectForMonth(date time.Time) map[uuid.UUID]storage.Event
+	CreateEvent(event storage.Event) error
+	EditEvent(id uuid.UUID, e storage.Event) error
+	DeleteEvent(id uuid.UUID) error
+	List(date time.Time, duration string) map[uuid.UUID]storage.Event
+	EventExists(id uuid.UUID) (bool, error)
+	GetEvent(id uuid.UUID) (storage.Event, error)
 }
 
 func NewServer(host, port string, logger Logger, app Application) *Server {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
-		w.Write([]byte("hello-world"))
-	})
-	srv := &http.Server{Addr: host + ":" + port, Handler: loggingMiddleware(mux, logger)}
-
-	return &Server{
+	srv := &Server{
 		host:   host,
 		port:   port,
-		app:    app,
 		logger: logger,
-		server: srv,
 	}
+
+	mux := getHandler(logger, app)
+	srv.server = &http.Server{Addr: net.JoinHostPort(host, port), Handler: loggingMiddleware(mux, logger)}
+
+	return srv
 }
 
 func (s *Server) Start(ctx context.Context) error {

@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"time"
 
 	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage"
@@ -24,9 +26,9 @@ type Storage interface {
 	Create(s storage.Event) error
 	Delete(id uuid.UUID) error
 	Edit(id uuid.UUID, e storage.Event) error
-	SelectForDay(date time.Time) (map[uuid.UUID]storage.Event, error)
-	SelectForWeek(date time.Time) (map[uuid.UUID]storage.Event, error)
-	SelectForMonth(date time.Time) (map[uuid.UUID]storage.Event, error)
+	List(date time.Time, duration string) (map[uuid.UUID]storage.Event, error)
+	Exists(id uuid.UUID) (bool, error)
+	GetEvent(id uuid.UUID) (storage.Event, error)
 }
 
 func New(logger Logger, storage Storage) *App {
@@ -36,47 +38,31 @@ func New(logger Logger, storage Storage) *App {
 	}
 }
 
-func (a *App) CreateEvent(event storage.Event) {
-	if err := a.storage.Create(event); err != nil {
-		a.logger.Error(err.Error())
-	}
+func (a *App) CreateEvent(event storage.Event) error {
+	return a.storage.Create(event)
 }
 
-func (a *App) DeleteEvent(id uuid.UUID) {
-	if err := a.storage.Delete(id); err != nil {
-		a.logger.Error(err.Error())
-	}
+func (a *App) DeleteEvent(id uuid.UUID) error {
+	return a.storage.Delete(id)
 }
 
-func (a *App) EditEvent(id uuid.UUID, e storage.Event) {
-	if err := a.storage.Edit(id, e); err != nil {
-		a.logger.Error(err.Error())
-	}
+func (a *App) EditEvent(id uuid.UUID, e storage.Event) error {
+	return a.storage.Edit(id, e)
 }
 
-func (a *App) SelectForDay(date time.Time) map[uuid.UUID]storage.Event {
-	events, err := a.storage.SelectForDay(date)
-	if err != nil {
+func (a *App) EventExists(id uuid.UUID) (bool, error) {
+	return a.storage.Exists(id)
+}
+
+func (a *App) List(date time.Time, duration string) map[uuid.UUID]storage.Event {
+	events, err := a.storage.List(date, duration)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.logger.Error(err.Error())
 	}
 
 	return events
 }
 
-func (a *App) SelectForWeek(date time.Time) map[uuid.UUID]storage.Event {
-	events, err := a.storage.SelectForWeek(date)
-	if err != nil {
-		a.logger.Error(err.Error())
-	}
-
-	return events
-}
-
-func (a *App) SelectForMonth(date time.Time) map[uuid.UUID]storage.Event {
-	events, err := a.storage.SelectForMonth(date)
-	if err != nil {
-		a.logger.Error(err.Error())
-	}
-
-	return events
+func (a *App) GetEvent(id uuid.UUID) (storage.Event, error) {
+	return a.storage.GetEvent(id)
 }

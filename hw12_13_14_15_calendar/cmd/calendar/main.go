@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"flag"
+	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -12,6 +13,7 @@ import (
 	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/app"
 	internalconfig "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/config"
 	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/logger"
+	internalgrpc "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/grpc"
 	internalhttp "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/http"
 	memorystorage "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage/memory"
 	sqlstorage "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage/sql"
@@ -55,9 +57,15 @@ func main() {
 		log.Fatal("unregistered storage type") //nolint:gocritic
 	}
 
+	err = storage.Connect(context.Background())
+	if err != nil {
+		logg.Error(fmt.Sprintf("can not connect to storage: %s", err))
+	}
+
 	calendar := app.New(logg, storage)
 
-	server := internalhttp.NewServer(config.Host, config.Port, logg, calendar)
+	httpServer := internalhttp.NewServer(config.Host, config.HTTPPort, logg, calendar)
+	grpcServer := internalgrpc.NewServer(config.Host, config.GRPCPort, logg, calendar)
 
 	ctx, cancel := signal.NotifyContext(context.Background(),
 		syscall.SIGINT, syscall.SIGTERM, syscall.SIGHUP)
@@ -70,7 +78,10 @@ func main() {
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second*3)
 		defer cancel()
 
-		if err := server.Stop(ctx); err != nil {
+		if err := httpServer.Stop(ctx); err != nil {
+			logg.Error("failed to stop http server: " + err.Error())
+		}
+		if err := grpcServer.Stop(ctx); err != nil {
 			logg.Error("failed to stop http server: " + err.Error())
 		}
 		doneCh <- struct{}{}
@@ -78,8 +89,13 @@ func main() {
 
 	logg.Info("calendar is running...")
 
-	if err := server.Start(ctx); err != nil {
+	if err := httpServer.Start(ctx); err != nil {
 		logg.Error("failed to start http server: " + err.Error())
+		cancel()
+		os.Exit(1)
+	}
+	if err := grpcServer.Start(ctx); err != nil {
+		logg.Error("failed to start grpc server: " + err.Error())
 		cancel()
 		os.Exit(1)
 	}

@@ -2,6 +2,8 @@ package sqlstorage
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
@@ -108,16 +110,17 @@ func (s *Storage) Edit(eventID uuid.UUID, e storage.Event) error {
 	return err
 }
 
-func (s *Storage) SelectForDay(date time.Time) (map[uuid.UUID]storage.Event, error) {
-	return s.SelectInDateRange(date, date.AddDate(0, 0, 1))
-}
-
-func (s *Storage) SelectForWeek(date time.Time) (map[uuid.UUID]storage.Event, error) {
-	return s.SelectInDateRange(date, date.AddDate(0, 0, 7))
-}
-
-func (s *Storage) SelectForMonth(date time.Time) (map[uuid.UUID]storage.Event, error) {
-	return s.SelectInDateRange(date, date.AddDate(0, 1, 0))
+func (s *Storage) List(date time.Time, duration string) (map[uuid.UUID]storage.Event, error) {
+	switch duration {
+	case storage.DayDuration:
+		return s.SelectInDateRange(date, date.AddDate(0, 0, 1))
+	case storage.WeekDuration:
+		return s.SelectInDateRange(date, date.AddDate(0, 0, 7))
+	case storage.MonthDuration:
+		return s.SelectInDateRange(date, date.AddDate(0, 1, 0))
+	default:
+		return s.SelectInDateRange(date, date.AddDate(0, 0, 1))
+	}
 }
 
 func (s *Storage) SelectInDateRange(startDate time.Time, endDate time.Time) (map[uuid.UUID]storage.Event, error) {
@@ -156,4 +159,23 @@ func (s *Storage) SelectInDateRange(startDate time.Time, endDate time.Time) (map
 	}
 
 	return events, nil
+}
+
+func (s *Storage) Exists(id uuid.UUID) (bool, error) {
+	var exists bool
+	query := `SELECT EXISTS(SELECT 1 FROM events WHERE id = $1)`
+	err := s.db.QueryRowxContext(s.ctx, query, id).Scan(&exists)
+	if err != nil && !errors.Is(err, sql.ErrNoRows) {
+		return false, err
+	}
+
+	return exists, nil
+}
+
+func (s *Storage) GetEvent(id uuid.UUID) (storage.Event, error) {
+	var event storage.Event
+	query := `SELECT * FROM events WHERE id = $1`
+	err := s.db.QueryRowxContext(s.ctx, query, id).StructScan(&event)
+
+	return event, err
 }
