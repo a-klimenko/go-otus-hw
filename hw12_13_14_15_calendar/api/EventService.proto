@@ -17,19 +17,24 @@ message Event {
   int64  UserID = 4;
   string StartDate = 5;
   string EndDate = 6;
+  string NotificationDate = 7;
 }
 
 message CreateRequest {
   Event event = 1;
 }
 
-message CreateResponse {}
+message CreateResponse {
+  Event event = 1;
+}
 
 message EditRequest {
   Event event = 1;
 }
 
-message EditResponse {}
+message EditResponse {
+  Event event = 1;
+}
 
 message DeleteRequest {
   string ID = 1;

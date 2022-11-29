@@ -3,12 +3,12 @@ package internalgrpc
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"net"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/grpc/eventpb"
@@ -30,10 +30,11 @@ type Logger interface {
 }
 
 type Application interface {
-	CreateEvent(event storage.Event) error
-	EditEvent(id uuid.UUID, e storage.Event) error
-	DeleteEvent(id uuid.UUID) error
-	List(date time.Time, duration string) map[uuid.UUID]storage.Event
+	CreateEvent(ctx context.Context, event storage.Event) error
+	EditEvent(ctx context.Context, id uuid.UUID, e storage.Event) error
+	DeleteEvent(ctx context.Context, id uuid.UUID) error
+	List(ctx context.Context, date time.Time, duration string) map[uuid.UUID]storage.Event
+	GetEvent(ctx context.Context, id uuid.UUID) (storage.Event, error)
 }
 
 type CalendarService struct {
@@ -65,66 +66,124 @@ func NewServer(host, port string, logger Logger, app Application) *Server {
 	return srv
 }
 
-func (s *Server) Start(ctx context.Context) error {
+func (s *Server) Start() error {
 	lsn, err := net.Listen("tcp", net.JoinHostPort(s.host, s.port))
 	if err != nil {
-		s.logger.Error(fmt.Sprintf("fail start gprc server: %s", err))
+		return err
 	}
 
 	if err := s.server.Serve(lsn); err != nil && !errors.Is(err, http.ErrServerClosed) {
-		s.logger.Error(fmt.Sprintf("listen: %s", err))
-		os.Exit(1)
+		return err
 	}
-	<-ctx.Done()
 
 	return nil
 }
 
-func (s *Server) Stop(ctx context.Context) error {
-	s.logger.Info("calendar is shutting down")
+func (s *Server) Stop() error {
+	s.logger.Info("grpc server is shutting down")
 	s.server.GracefulStop()
-	<-ctx.Done()
 
 	return nil
 }
 
-func (s *CalendarService) Create(_ context.Context, in *eventpb.CreateRequest) (*eventpb.CreateResponse, error) {
-	encodedEvent, _ := json.Marshal(in.Event)
+func (s *CalendarService) Create(ctx context.Context, in *eventpb.CreateRequest) (*eventpb.CreateResponse, error) {
 	event := storage.NewEvent()
 	event.UserID = in.Event.GetUserID()
 	event.Title = in.Event.GetTitle()
 	event.Description = in.Event.GetDescription()
-	event.StartDate, _ = time.Parse(time.RFC3339, in.Event.GetStartDate())
-	event.EndDate, _ = time.Parse(time.RFC3339, in.Event.GetEndDate())
-	if err := json.Unmarshal(encodedEvent, event); err != nil {
+	startDate, err := time.Parse(time.RFC3339, in.Event.GetStartDate())
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("can't parse start date on create event %s", err))
 		return nil, err
 	}
+	event.StartDate = startDate
+	endDate, err := time.Parse(time.RFC3339, in.Event.GetEndDate())
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("can't parse end date on create event %s", err))
+		return nil, err
+	}
+	event.EndDate = endDate
+	notificationDate, err := time.Parse(time.RFC3339, in.Event.GetNotificationDate())
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("can't parse notification date on create event %s", err))
+		return nil, err
+	}
+	event.NotificationDate = notificationDate
 
-	if err := s.app.CreateEvent(*event); err != nil {
+	if err := s.app.CreateEvent(ctx, *event); err != nil {
 		s.logger.Error(fmt.Sprintf("fail create event %s", err))
 		return nil, err
 	}
 
-	return &eventpb.CreateResponse{}, nil
-}
-
-func (s *CalendarService) Edit(_ context.Context, in *eventpb.EditRequest) (*eventpb.EditResponse, error) {
-	encodedEvent, _ := json.Marshal(in.Event)
-	var event storage.Event
-	if err := json.Unmarshal(encodedEvent, &event); err != nil {
+	respEvent := eventpb.Event{}
+	jsonEvent, err := json.Marshal(event)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("can't marshall event on create %s", err))
 		return nil, err
 	}
 
-	if err := s.app.EditEvent(event.ID, event); err != nil {
+	if err := json.Unmarshal(jsonEvent, &respEvent); err != nil {
+		s.logger.Error(fmt.Sprintf("can not create response event %s", err))
+		return nil, err
+	}
+
+	return &eventpb.CreateResponse{Event: &respEvent}, nil
+}
+
+func (s *CalendarService) Edit(ctx context.Context, in *eventpb.EditRequest) (*eventpb.EditResponse, error) {
+	id, err := uuid.Parse(in.GetEvent().GetID())
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("can not parse id %s on event edit", id))
+		return nil, err
+	}
+
+	event, err := s.app.GetEvent(ctx, id)
+	if errors.Is(err, sql.ErrNoRows) {
+		s.logger.Error(fmt.Sprintf("event not found %s", id))
+		return nil, err
+	}
+	if err != nil {
+		s.logger.Error(err.Error())
+		return nil, err
+	}
+
+	jsonEvent, err := json.Marshal(in.Event)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("can't marshall event on edit %s", err))
+		return nil, err
+	}
+	if err := json.Unmarshal(jsonEvent, &event); err != nil {
+		s.logger.Error(fmt.Sprintf("can not create response event %s", err))
+		return nil, err
+	}
+
+	if err := s.app.EditEvent(ctx, event.ID, event); err != nil {
 		s.logger.Error(fmt.Sprintf("event editing fail: %s", err))
 		return nil, err
 	}
 
-	return &eventpb.EditResponse{}, nil
+	jsonEvent, err = json.Marshal(event)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("can't marshall event respone on edit %s", err))
+		return nil, err
+	}
+	respEvent := eventpb.Event{}
+	if err := json.Unmarshal(jsonEvent, &respEvent); err != nil {
+		s.logger.Error(fmt.Sprintf("can not create response event %s", err))
+		return nil, err
+	}
+
+	return &eventpb.EditResponse{Event: &respEvent}, nil
 }
 
-func (s *CalendarService) Delete(_ context.Context, in *eventpb.DeleteRequest) (*eventpb.DeleteResponse, error) {
-	if err := s.app.DeleteEvent(uuid.MustParse(in.ID)); err != nil {
+func (s *CalendarService) Delete(ctx context.Context, in *eventpb.DeleteRequest) (*eventpb.DeleteResponse, error) {
+	id, err := uuid.Parse(in.ID)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("can not parse id: %s on delete", err))
+		return nil, err
+	}
+
+	if err := s.app.DeleteEvent(ctx, id); err != nil {
 		s.logger.Error(fmt.Sprintf("event deleting fail: %s", err))
 		return nil, err
 	}
@@ -132,9 +191,13 @@ func (s *CalendarService) Delete(_ context.Context, in *eventpb.DeleteRequest) (
 	return &eventpb.DeleteResponse{}, nil
 }
 
-func (s *CalendarService) List(_ context.Context, in *eventpb.ListRequest) (*eventpb.ListResponse, error) {
-	parsedDate, _ := time.Parse("2006-01-02", in.Date)
-	list := s.app.List(parsedDate, in.Duration)
+func (s *CalendarService) List(ctx context.Context, in *eventpb.ListRequest) (*eventpb.ListResponse, error) {
+	parsedDate, err := time.Parse("2006-01-02", in.Date)
+	if err != nil {
+		s.logger.Error(fmt.Sprintf("can't parse date on list event %s", err))
+		return nil, err
+	}
+	list := s.app.List(ctx, parsedDate, in.Duration)
 
 	result := make(map[string]*eventpb.Event)
 	for id, event := range list {

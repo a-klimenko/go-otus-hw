@@ -7,22 +7,24 @@ import (
 	"log"
 	"os"
 	"os/signal"
+	"path/filepath"
 	"syscall"
 	"time"
+
+	memorystorage "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage/memory"
+	sqlstorage "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage/sql"
 
 	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/app"
 	internalconfig "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/config"
 	"github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/logger"
 	internalgrpc "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/grpc"
 	internalhttp "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/server/http"
-	memorystorage "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage/memory"
-	sqlstorage "github.com/a-klimenko/go-otus-hw/hw12_13_14_15_calendar/internal/storage/sql"
 )
 
 var configFile string
 
 func init() {
-	flag.StringVar(&configFile, "config", "./../../configs/config.env", "Path to configuration file")
+	flag.StringVar(&configFile, "config", "./../../configs/calendar_config.env", "Path to configuration file")
 }
 
 func main() {
@@ -35,6 +37,9 @@ func main() {
 
 	config := internalconfig.NewConfig(configFile)
 
+	if err := os.MkdirAll(filepath.Dir(config.LogFile), 0o755); err != nil {
+		log.Fatalf("error creating log folder: %v", err)
+	}
 	logFile, err := os.OpenFile(config.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
@@ -57,7 +62,7 @@ func main() {
 		log.Fatal("unregistered storage type") //nolint:gocritic
 	}
 
-	err = storage.Connect(context.Background())
+	err = storage.Connect()
 	if err != nil {
 		logg.Error(fmt.Sprintf("can not connect to storage: %s", err))
 	}
@@ -81,7 +86,7 @@ func main() {
 		if err := httpServer.Stop(ctx); err != nil {
 			logg.Error("failed to stop http server: " + err.Error())
 		}
-		if err := grpcServer.Stop(ctx); err != nil {
+		if err := grpcServer.Stop(); err != nil {
 			logg.Error("failed to stop http server: " + err.Error())
 		}
 		doneCh <- struct{}{}
@@ -89,15 +94,22 @@ func main() {
 
 	logg.Info("calendar is running...")
 
-	if err := httpServer.Start(ctx); err != nil {
-		logg.Error("failed to start http server: " + err.Error())
-		cancel()
-		os.Exit(1)
-	}
-	if err := grpcServer.Start(ctx); err != nil {
-		logg.Error("failed to start grpc server: " + err.Error())
-		cancel()
-		os.Exit(1)
-	}
+	go func() {
+		logg.Info("starting http server...")
+		if err := httpServer.Start(); err != nil {
+			logg.Error("failed to start http server: " + err.Error())
+			cancel()
+			os.Exit(1)
+		}
+	}()
+
+	go func() {
+		logg.Info("starting grpc server...")
+		if err := grpcServer.Start(); err != nil {
+			logg.Error("failed to start grpc server: " + err.Error())
+			cancel()
+			os.Exit(1)
+		}
+	}()
 	<-doneCh
 }

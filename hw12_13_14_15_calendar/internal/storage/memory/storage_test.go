@@ -1,6 +1,7 @@
 package memorystorage
 
 import (
+	"context"
 	"errors"
 	"testing"
 	"time"
@@ -21,7 +22,7 @@ func TestStorage(t *testing.T) {
 		EndDate:     time.Now().Add(time.Hour * 3),
 	}
 	eventID := movieEvent.ID
-	err := storage.Create(movieEvent)
+	err := storage.Create(context.Background(), movieEvent)
 	require.NoError(t, err)
 
 	t.Run("busy error", func(t *testing.T) {
@@ -35,7 +36,7 @@ func TestStorage(t *testing.T) {
 			StartDate:   time.Now().Add(time.Hour),
 			EndDate:     time.Now().Add(time.Hour * 2),
 		}
-		err := storage.Create(lessonEvent)
+		err := storage.Create(context.Background(), lessonEvent)
 
 		require.True(t, errors.Is(err, memorystorage.ErrDateAlreadyBusy))
 	})
@@ -43,17 +44,25 @@ func TestStorage(t *testing.T) {
 	t.Run("edit", func(t *testing.T) {
 		movieEvent.Title = "Watch the new movie"
 
-		eventsForDayBeforeEdit, err := storage.List(movieEvent.StartDate.Add(-1*time.Hour), memorystorage.DayDuration)
+		eventsForDayBeforeEdit, err := storage.List(
+			context.Background(),
+			movieEvent.StartDate.Add(-1*time.Hour),
+			memorystorage.DayDuration,
+		)
 		require.NoError(t, err)
 		require.Len(t, eventsForDayBeforeEdit, 1)
 
 		firstDayEvent := eventsForDayBeforeEdit[eventID]
 		require.NotEqual(t, firstDayEvent, movieEvent)
 
-		err = storage.Edit(movieEvent.ID, movieEvent)
+		err = storage.Edit(context.Background(), movieEvent.ID, movieEvent)
 		require.NoError(t, err)
 
-		eventsForDayAfterEdit, err := storage.List(movieEvent.StartDate.Add(-1*time.Hour), memorystorage.DayDuration)
+		eventsForDayAfterEdit, err := storage.List(
+			context.Background(),
+			movieEvent.StartDate.Add(-1*time.Hour),
+			memorystorage.DayDuration,
+		)
 		require.NoError(t, err)
 
 		updatedEvent := eventsForDayAfterEdit[eventID]
@@ -62,6 +71,7 @@ func TestStorage(t *testing.T) {
 
 	t.Run("select", func(t *testing.T) {
 		emptyForDayEvents, err := storage.List(
+			context.Background(),
 			movieEvent.StartDate.AddDate(0, 0, -2),
 			memorystorage.DayDuration,
 		)
@@ -69,6 +79,7 @@ func TestStorage(t *testing.T) {
 		require.Len(t, emptyForDayEvents, 0)
 
 		forDayEvents, err := storage.List(
+			context.Background(),
 			movieEvent.StartDate.Add(-1*time.Hour),
 			memorystorage.DayDuration,
 		)
@@ -77,6 +88,7 @@ func TestStorage(t *testing.T) {
 		require.Equal(t, movieEvent, forDayEvents[eventID])
 
 		emptyForWeekEvents, err := storage.List(
+			context.Background(),
 			movieEvent.StartDate.AddDate(0, 0, -8),
 			memorystorage.WeekDuration,
 		)
@@ -84,6 +96,7 @@ func TestStorage(t *testing.T) {
 		require.Len(t, emptyForWeekEvents, 0)
 
 		forWeekEvents, err := storage.List(
+			context.Background(),
 			movieEvent.StartDate.AddDate(0, 0, -1),
 			memorystorage.WeekDuration,
 		)
@@ -92,6 +105,7 @@ func TestStorage(t *testing.T) {
 		require.Equal(t, movieEvent, forWeekEvents[eventID])
 
 		emptyForMonths, err := storage.List(
+			context.Background(),
 			movieEvent.StartDate.AddDate(0, -1, -1),
 			memorystorage.MonthDuration,
 		)
@@ -99,6 +113,7 @@ func TestStorage(t *testing.T) {
 		require.Len(t, emptyForMonths, 0)
 
 		forMonths, err := storage.List(
+			context.Background(),
 			movieEvent.StartDate.AddDate(0, 0, -1),
 			memorystorage.MonthDuration,
 		)
@@ -108,17 +123,18 @@ func TestStorage(t *testing.T) {
 	})
 
 	t.Run("delete", func(t *testing.T) {
-		err = storage.Delete(movieEvent.ID)
+		err = storage.Delete(context.Background(), movieEvent.ID)
 		require.NoError(t, err)
 
 		eventsForDay, err := storage.List(
+			context.Background(),
 			movieEvent.StartDate.Add(-1*time.Hour),
 			memorystorage.MonthDuration,
 		)
 		require.NoError(t, err)
 		require.Len(t, eventsForDay, 0)
 
-		err = storage.Delete(uuid.New())
+		err = storage.Delete(context.Background(), uuid.New())
 		require.True(t, errors.Is(err, memorystorage.ErrEventNotFound))
 	})
 }

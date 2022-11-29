@@ -21,14 +21,17 @@ type Logger interface {
 }
 
 type Storage interface {
-	Connect(ctx context.Context) error
+	Connect() error
 	Close() error
-	Create(s storage.Event) error
-	Delete(id uuid.UUID) error
-	Edit(id uuid.UUID, e storage.Event) error
-	List(date time.Time, duration string) (map[uuid.UUID]storage.Event, error)
-	Exists(id uuid.UUID) (bool, error)
-	GetEvent(id uuid.UUID) (storage.Event, error)
+	Create(ctx context.Context, s storage.Event) error
+	Delete(ctx context.Context, id uuid.UUID) error
+	Edit(ctx context.Context, id uuid.UUID, e storage.Event) error
+	List(ctx context.Context, date time.Time, duration string) (map[uuid.UUID]storage.Event, error)
+	Exists(ctx context.Context, id uuid.UUID) (bool, error)
+	GetEvent(ctx context.Context, id uuid.UUID) (storage.Event, error)
+	GetByNotificationPeriod(ctx context.Context, startDate, endDate time.Time) (map[uuid.UUID]storage.Event, error)
+	ChangeNotifyStatus(ctx context.Context, eventID uuid.UUID) error
+	DeleteOldEvents(ctx context.Context) error
 }
 
 func New(logger Logger, storage Storage) *App {
@@ -38,24 +41,24 @@ func New(logger Logger, storage Storage) *App {
 	}
 }
 
-func (a *App) CreateEvent(event storage.Event) error {
-	return a.storage.Create(event)
+func (a *App) CreateEvent(ctx context.Context, event storage.Event) error {
+	return a.storage.Create(ctx, event)
 }
 
-func (a *App) DeleteEvent(id uuid.UUID) error {
-	return a.storage.Delete(id)
+func (a *App) DeleteEvent(ctx context.Context, id uuid.UUID) error {
+	return a.storage.Delete(ctx, id)
 }
 
-func (a *App) EditEvent(id uuid.UUID, e storage.Event) error {
-	return a.storage.Edit(id, e)
+func (a *App) EditEvent(ctx context.Context, id uuid.UUID, e storage.Event) error {
+	return a.storage.Edit(ctx, id, e)
 }
 
-func (a *App) EventExists(id uuid.UUID) (bool, error) {
-	return a.storage.Exists(id)
+func (a *App) EventExists(ctx context.Context, id uuid.UUID) (bool, error) {
+	return a.storage.Exists(ctx, id)
 }
 
-func (a *App) List(date time.Time, duration string) map[uuid.UUID]storage.Event {
-	events, err := a.storage.List(date, duration)
+func (a *App) List(ctx context.Context, date time.Time, duration string) map[uuid.UUID]storage.Event {
+	events, err := a.storage.List(ctx, date, duration)
 	if err != nil && !errors.Is(err, sql.ErrNoRows) {
 		a.logger.Error(err.Error())
 	}
@@ -63,6 +66,6 @@ func (a *App) List(date time.Time, duration string) map[uuid.UUID]storage.Event 
 	return events
 }
 
-func (a *App) GetEvent(id uuid.UUID) (storage.Event, error) {
-	return a.storage.GetEvent(id)
+func (a *App) GetEvent(ctx context.Context, id uuid.UUID) (storage.Event, error) {
+	return a.storage.GetEvent(ctx, id)
 }
