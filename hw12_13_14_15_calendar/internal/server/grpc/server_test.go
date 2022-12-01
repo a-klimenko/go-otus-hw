@@ -37,8 +37,8 @@ func (suite *ServerTestSuite) SetupTest() {
 	suite.logger = logger.New("info", suite.logFile)
 	suite.calendar = app.New(suite.logger, suite.storage)
 	suite.service = &CalendarService{
-		app:    suite.calendar,
-		logger: suite.logger,
+		App:    suite.calendar,
+		Logger: suite.logger,
 	}
 	suite.updateEvent = &storage.Event{
 		ID:          uuid.New(),
