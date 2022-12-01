@@ -7,7 +7,6 @@ import (
 	"log"
 	"os"
 	"os/signal"
-	"path/filepath"
 	"syscall"
 	"time"
 
@@ -27,6 +26,8 @@ func init() {
 	flag.StringVar(&configFile, "config", "./../../configs/calendar_config.env", "Path to configuration file")
 }
 
+const CalendarLogFile = "/opt/calendar/logs/calendar.log"
+
 func main() {
 	flag.Parse()
 
@@ -37,10 +38,7 @@ func main() {
 
 	config := internalconfig.NewConfig(configFile)
 
-	if err := os.MkdirAll(filepath.Dir(config.LogFile), 0o755); err != nil {
-		log.Fatalf("error creating log folder: %v", err)
-	}
-	logFile, err := os.OpenFile(config.LogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o666)
+	logFile, err := os.OpenFile(CalendarLogFile, os.O_RDWR|os.O_CREATE|os.O_APPEND, 0o666)
 	if err != nil {
 		log.Fatalf("error opening file: %v", err)
 	}

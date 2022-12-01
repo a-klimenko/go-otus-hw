@@ -32,8 +32,19 @@ build-img:
 run-img: build-img
 	docker run $(DOCKER_IMG)
 
+up:
+	docker-compose --env-file deployments/.env -f deployments/docker-compose.yaml up -d
+
+down:
+	docker-compose -f deployments/docker-compose.yaml down
+
 version: build
 	$(BIN_CALENDAR) version
+
+integration-tests: up
+	docker-compose -f deployments/docker-compose.tests.yaml up --build && \
+	docker-compose -f deployments/docker-compose.tests.yaml down && \
+	docker-compose -f deployments/docker-compose.yaml down
 
 test:
 	go test -race ./internal/...

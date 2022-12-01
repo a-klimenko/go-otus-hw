@@ -1,4 +1,4 @@
-version: "3"
+version: "3.8"
 
 services:
   db:
@@ -9,7 +9,7 @@ services:
       POSTGRES_USER: ${DB_USER}
       POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "${DB_PORT}:5432"
+      - ${DB_PORT}:5432
     restart: always
 
   rabbitmq:
@@ -19,6 +19,35 @@ services:
     ports:
       - ${RABBIT_PORT}:5672
       - ${RABBIT_GUI_PORT}:15672
+
+  migrator:
+    container_name: migrator
+    build:
+      context: ../
+      dockerfile: ./build/migrator/Dockerfile
+    restart: on-failure
+    depends_on:
+      - db
+    environment:
+      POSTGRES_DB: ${DB_NAME}
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+    command: /go/bin/goose postgres "postgres://${DB_USER}:${DB_PASSWORD}@db:5432/${DB_NAME}?sslmode=disable" up
+
+  calendar:
+    build:
+      context: ../
+      dockerfile: ./build/calendar/Dockerfile
+    container_name: calendar
+    restart: always
+    depends_on:
+      - db
+      - rabbitmq
+    volumes:
+      - ../logs/calendar/:/opt/calendar/logs
+    ports:
+      - ${HTTP_PORT}:8888
+      - ${GRPC_PORT}:50051
 
   scheduler:
     build:
@@ -30,7 +59,7 @@ services:
       - db
       - rabbitmq
     volumes:
-      - ../docker/logs/scheduler/:/opt/scheduler/logs
+      - ../logs/scheduler/:/opt/scheduler/logs
 
   sender:
     build:
@@ -42,9 +71,12 @@ services:
       - db
       - rabbitmq
     volumes:
-      - ../docker/logs/sender/:/opt/sender/logs
-
+      - ../logs/sender/:/opt/sender/logs
 
 volumes:
   postgres:
     driver: local
+
+networks:
+  default:
+    name: calendar_network

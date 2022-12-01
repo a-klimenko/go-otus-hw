@@ -1,5 +1,4 @@
 logs/
-docker/
 bin/
 configs/calendar_config.env
 configs/sender_config.env
